@@ -1,6 +1,5 @@
 #ifndef THREADS_THREAD_H
 #define THREADS_THREAD_H
-
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
@@ -88,6 +87,12 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
+
+    int init_priority;                 
+    struct lock *wait_on_lock;        
+    struct list donations;             
+    struct list_elem donation_elem;    
+
     struct list_elem allelem;           /* List element for all threads list. */
 
     int64_t wake_up_tick;
@@ -139,5 +144,10 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+void donate_priority(void);
+void refresh_priority(void);
+
+bool cmp_donate_priority(const struct list_elem *a, const struct list_elem *b, void *aux);
 
 #endif /* threads/thread.h */
