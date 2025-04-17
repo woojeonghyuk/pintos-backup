@@ -212,7 +212,7 @@ lock_acquire (struct lock *lock)
 
   struct thread *cur = thread_current();
 
-  if (lock->holder) {
+  if (!thread_mlfqs && lock->holder) {
     cur->wait_on_lock = lock;
   
     list_insert_ordered(&lock->holder->donations,
@@ -227,6 +227,7 @@ lock_acquire (struct lock *lock)
   cur->wait_on_lock = NULL;
   lock->holder = cur; 
 }
+
 
 /* Tries to acquires LOCK and returns true if successful or false
    on failure.  The lock must not already be held by the current
@@ -253,31 +254,33 @@ lock_try_acquire (struct lock *lock)
    An interrupt handler cannot acquire a lock, so it does not
    make sense to try to release a lock within an interrupt
    handler. */
-   void
-   lock_release (struct lock *lock) 
-   {
-     ASSERT (lock != NULL);
-     ASSERT (lock_held_by_current_thread (lock));
-   
-     struct thread *cur = thread_current();
-   
-     struct list_elem *e = list_begin(&cur->donations);
-     while (e != list_end(&cur->donations)) {
-       struct thread *t = list_entry(e, struct thread, donation_elem);
-       struct list_elem *next = list_next(e);  
-     
-       if (t->wait_on_lock == lock) {
-         list_remove(&t->donation_elem);
-       }
-     
-       e = next;
-     }
-   
-     refresh_priority();
-     
-     lock->holder = NULL;
-     sema_up (&lock->semaphore);
-   }
+void
+lock_release (struct lock *lock) 
+{
+  ASSERT (lock != NULL);
+  ASSERT (lock_held_by_current_thread (lock));
+
+  struct thread *cur = thread_current();
+
+  if (!thread_mlfqs) {
+    struct list_elem *e = list_begin(&cur->donations);
+    while (e != list_end(&cur->donations)) {
+      struct thread *t = list_entry(e, struct thread, donation_elem);
+      struct list_elem *next = list_next(e);  
+
+      if (t->wait_on_lock == lock) {
+        list_remove(&t->donation_elem);
+      }
+
+      e = next;
+    }
+
+    refresh_priority();
+  }
+
+  lock->holder = NULL;
+  sema_up (&lock->semaphore);
+}
 
 /* Returns true if the current thread holds LOCK, false
    otherwise.  (Note that testing whether some other thread holds
